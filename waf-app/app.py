@@ -73,7 +73,7 @@ def proxy(subpath):
     # ---------- 2. Check request against WAF rules ----------
     result = check_request(request_data)
 
-        if result["is_attack"]:
+    if result["is_attack"]:
         # Block the request and log the event
         attack_type = result["attack_type"]
         matched_pattern = result["matched_pattern"]
