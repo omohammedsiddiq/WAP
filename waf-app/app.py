@@ -1,5 +1,5 @@
 # app.py
-from flask import Flask, request, Response
+from flask import Flask, request, Response, render_template, jsonify
 import requests
 import json
 import datetime
@@ -26,9 +26,30 @@ def get_client_ip():
         client_ip = request.remote_addr or 'unknown'
     return client_ip
 
+# ----------------------------------------------------------------------
+# Dashboard and API routes (exempt from WAF rule checking)
+# ----------------------------------------------------------------------
+@app.route('/dashboard')
+def dashboard():
+    """Render the WAF monitoring dashboard."""
+    return render_template('dashboard.html')
+
+
+@app.route('/api/stats')
+def api_stats():
+    """Return aggregated statistics as JSON."""
+    return jsonify(db.get_stats())
+
+
+@app.route('/api/logs')
+def api_logs():
+    """Return recent logs as JSON (limit parameter, default 20)."""
+    limit = request.args.get('limit', default=20, type=int)
+    return jsonify(db.get_recent_logs(limit=limit))
 
 # Catch-all route that captures any path, including the root "/".
 # Methods allowed: GET, POST, PUT, DELETE (as required).
+
 @app.route('/', defaults={'subpath': ''}, methods=['GET', 'POST', 'PUT', 'DELETE'])
 @app.route('/<path:subpath>', methods=['GET', 'POST', 'PUT', 'DELETE'])
 def proxy(subpath):
