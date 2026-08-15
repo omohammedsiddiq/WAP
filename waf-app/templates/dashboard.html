@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WAF Dashboard</title>
+    <style>
+        /* ---------- Global Styles ---------- */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #f0f2f5;
+            color: #333;
+        }
+
+        /* ---------- Header ---------- */
+        .header {
+            background: #1a1a2e;
+            color: white;
+            padding: 20px 30px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+        }
+
+        .header h1 {
+            font-size: 1.8rem;
+            font-weight: 500;
+        }
+
+        .header .timestamp {
+            font-size: 0.9rem;
+            opacity: 0.8;
+        }
+
+        /* ---------- Main Content ---------- */
+        .container {
+            max-width: 1200px;
+            margin: 30px auto;
+            padding: 0 20px;
+        }
+
+        /* ---------- Cards ---------- */
+        .cards {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .card {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            flex: 1 1 200px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            text-align: center;
+        }
+
+        .card .number {
+            font-size: 2.5rem;
+            font-weight: bold;
+            margin: 10px 0;
+        }
+
+        .card .label {
+            text-transform: uppercase;
+            font-size: 0.85rem;
+            color: #666;
+            letter-spacing: 1px;
+        }
+
+        .card.total .number { color: #1a1a2e; }
+        .card.allowed .number { color: #28a745; }
+        .card.blocked .number { color: #dc3545; }
+
+        /* ---------- Attack Breakdown ---------- */
+        .breakdown {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            margin-bottom: 30px;
+        }
+
+        .breakdown-item {
+            background: #fff;
+            border-radius: 6px;
+            padding: 15px 20px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex: 1 1 180px;
+        }
+
+        .breakdown-item .type {
+            font-weight: 600;
+            color: #555;
+        }
+
+        .breakdown-item .count {
+            font-size: 1.5rem;
+            font-weight: bold;
+        }
+
+        /* ---------- Table ---------- */
+        .table-container {
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+
+        .table-header {
+            background: #f8f9fa;
+            padding: 15px 20px;
+            font-size: 1.2rem;
+            font-weight: 600;
+            border-bottom: 1px solid #dee2e6;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th, td {
+            padding: 12px 15px;
+            text-align: left;
+            border-bottom: 1px solid #e9ecef;
+        }
+
+        th {
+            background: #f8f9fa;
+            font-weight: 600;
+            color: #555;
+            text-transform: uppercase;
+            font-size: 0.85rem;
+        }
+
+        tr.allowed {
+            background-color: #f0fff4;   /* light green */
+        }
+
+        tr.blocked {
+            background-color: #fff0f0;   /* light red */
+        }
+
+        .action-badge {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: bold;
+            text-transform: uppercase;
+        }
+
+        .action-badge.allowed {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .action-badge.blocked {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        /* ---------- Responsive ---------- */
+        @media (max-width: 768px) {
+            .cards, .breakdown {
+                flex-direction: column;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🛡️ WAF Dashboard</h1>
+        <span class="timestamp" id="current-time"></span>
+    </div>
+
+    <div class="container">
+        <!-- Summary Cards -->
+        <div class="cards">
+            <div class="card total">
+                <div class="label">Total Requests</div>
+                <div class="number" id="total-requests">0</div>
+            </div>
+            <div class="card allowed">
+                <div class="label">Allowed</div>
+                <div class="number" id="allowed-requests">0</div>
+            </div>
+            <div class="card blocked">
+                <div class="label">Blocked</div>
+                <div class="number" id="blocked-requests">0</div>
+            </div>
+        </div>
+
+        <!-- Attack Breakdown -->
+        <div class="breakdown">
+            <div class="breakdown-item">
+                <span class="type">SQL Injection</span>
+                <span class="count" id="sqli-count">0</span>
+            </div>
+            <div class="breakdown-item">
+                <span class="type">XSS</span>
+                <span class="count" id="xss-count">0</span>
+            </div>
+            <div class="breakdown-item">
+                <span class="type">Directory Traversal</span>
+                <span class="count" id="traversal-count">0</span>
+            </div>
+            <div class="breakdown-item">
+                <span class="type">Command Injection</span>
+                <span class="count" id="command-injection-count">0</span>
+            </div>
+        </div>
+
+        <!-- Recent Events Table -->
+        <div class="table-container">
+            <div class="table-header">Recent Events</div>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Time</th>
+                        <th>IP</th>
+                        <th>Path</th>
+                        <th>Attack Type</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+                <tbody id="recent-logs">
+                    <!-- Rows will be inserted here by JavaScript -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        // Function to update the current time in the header
+        function updateClock() {
+            const now = new Date();
+            document.getElementById('current-time').textContent = now.toLocaleString();
+        }
+
+        // Function to fetch stats and logs, then update the DOM
+        async function refreshData() {
+            try {
+                // Fetch stats
+                const statsResponse = await fetch('/api/stats');
+                const stats = await statsResponse.json();
+
+                document.getElementById('total-requests').textContent = stats.total;
+                document.getElementById('allowed-requests').textContent = stats.allowed;
+                document.getElementById('blocked-requests').textContent = stats.blocked;
+                document.getElementById('sqli-count').textContent = stats.sqli;
+                document.getElementById('xss-count').textContent = stats.xss;
+                document.getElementById('traversal-count').textContent = stats.traversal;
+                document.getElementById('command-injection-count').textContent = stats.command_injection;
+
+                // Fetch logs (limit 20)
+                const logsResponse = await fetch('/api/logs?limit=20');
+                const logs = await logsResponse.json();
+
+                const tbody = document.getElementById('recent-logs');
+                tbody.innerHTML = '';  // clear existing rows
+
+                logs.forEach(log => {
+                    const row = document.createElement('tr');
+                    row.className = log.action === 'BLOCKED' ? 'blocked' : 'allowed';
+
+                    // Time cell
+                    const timeCell = document.createElement('td');
+                    timeCell.textContent = log.timestamp;
+                    row.appendChild(timeCell);
+
+                    // IP cell
+                    const ipCell = document.createElement('td');
+                    ipCell.textContent = log.client_ip;
+                    row.appendChild(ipCell);
+
+                    // Path cell
+                    const pathCell = document.createElement('td');
+                    pathCell.textContent = log.path;
+                    row.appendChild(pathCell);
+
+                    // Attack Type cell
+                    const attackCell = document.createElement('td');
+                    attackCell.textContent = log.attack_type || '-';
+                    row.appendChild(attackCell);
+
+                    // Action cell
+                    const actionCell = document.createElement('td');
+                    const badge = document.createElement('span');
+                    badge.className = `action-badge ${log.action.toLowerCase()}`;
+                    badge.textContent = log.action;
+                    actionCell.appendChild(badge);
+                    row.appendChild(actionCell);
+
+                    tbody.appendChild(row);
+                });
+            } catch (error) {
+                console.error('Error refreshing dashboard data:', error);
+            }
+        }
+
+        // Initial load
+        updateClock();
+        refreshData();
+
+        // Refresh every 5 seconds
+        setInterval(() => {
+            updateClock();
+            refreshData();
+        }, 5000);
+
+        // Update clock every second for accuracy
+        setInterval(updateClock, 1000);
+    </script>
+</body>
+</html>
