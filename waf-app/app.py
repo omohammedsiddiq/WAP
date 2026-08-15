@@ -5,6 +5,7 @@ import json
 import datetime
 from rules import check_request
 import db
+import os
 from rate_limiter import SlidingWindowRateLimiter
 
 # Rate limiting configuration
@@ -139,7 +140,7 @@ def proxy(subpath):
     db.log_request(timestamp, client_ip, method, path, 'ALLOWED')
 
     # ---------- 3. Forward the request to the target app ----------
-    target_base = "http://localhost:5001"
+    target_base = os.environ.get("TARGET_APP_URL", "http://localhost:5001")
     target_url = target_base + path
 
     # Copy incoming headers, but remove Host and Cookie.
