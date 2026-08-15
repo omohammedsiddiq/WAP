@@ -1,4 +1,5 @@
 # app.py
+from rules import check_request
 from flask import Flask, request, Response
 import requests
 import json
