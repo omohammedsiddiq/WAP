@@ -5,7 +5,15 @@ import json
 import datetime
 from rules import check_request
 import db
+from rate_limiter import SlidingWindowRateLimiter
+
+# Rate limiting configuration
+MAX_REQUESTS = 20        # max requests per window per IP
+WINDOW_SECONDS = 10      # sliding window length in seconds
+
 app = Flask(__name__)
+
+rate_limiter = SlidingWindowRateLimiter(MAX_REQUESTS, WINDOW_SECONDS)
 
 
 def get_timestamp():
@@ -53,13 +61,45 @@ def api_logs():
 @app.route('/', defaults={'subpath': ''}, methods=['GET', 'POST', 'PUT', 'DELETE'])
 @app.route('/<path:subpath>', methods=['GET', 'POST', 'PUT', 'DELETE'])
 def proxy(subpath):
-    """
-    Reverse proxy endpoint.
-    Captures every request, extracts metadata, checks it against WAF rules,
-    and either blocks the request or forwards it to the target app.
-    """
-
     # ---------- 1. Extract incoming request data ----------
+    method = request.method
+    full_url = request.url
+    path = request.path
+    query_params = request.args.to_dict(flat=False)
+    headers = dict(request.headers)
+    cookies = request.cookies.to_dict()
+    client_ip = get_client_ip()
+    raw_body = request.get_data()
+
+    # parse json, form data, etc. (as before)
+    ...
+
+    # ---------- 2. Rate limiting check (BEFORE rule checking) ----------
+    timestamp = get_timestamp()   # for logging in both branches
+
+    if rate_limiter.is_rate_limited(client_ip):
+        # Rate limit exceeded – block immediately
+        print(f"[{timestamp}] IP={client_ip} path={path} "
+              f"attack_type=RATE_LIMIT action=BLOCKED")
+
+        # Log to database with attack_type = 'RATE_LIMIT'
+        db.log_request(timestamp, client_ip, method, path, 'BLOCKED',
+                       attack_type='RATE_LIMIT', matched_pattern=None)
+
+        # Return 429 Too Many Requests
+        html_body = """
+        <!DOCTYPE html>
+        <html>
+        <head><title>429 Too Many Requests</title></head>
+        <body>
+            <h1>429 Too Many Requests</h1>
+            <p>Rate limit exceeded. Please slow down.</p>
+        </body>
+        </html>
+        """
+        return Response(html_body, status=429, mimetype='text/html')
+
+    # ---------- 3. WAF rule checking (only if not rate limited) ----------
     method = request.method
     full_url = request.url                     # e.g. http://localhost:5000/search?q=test
     path = request.path                        # e.g. /search
@@ -91,36 +131,7 @@ def proxy(subpath):
         "json_data": json_data
     }
 
-    # ---------- 2. Check request against WAF rules ----------
     result = check_request(request_data)
-
-    if result["is_attack"]:
-        # Block the request and log the event
-        attack_type = result["attack_type"]
-        matched_pattern = result["matched_pattern"]
-        timestamp = get_timestamp()
-
-        print(f"[{timestamp}] IP={client_ip} "
-              f"attack_type={attack_type} "
-              f"matched_pattern={matched_pattern} "
-              f"action=BLOCKED")
-
-        # Save to database
-        db.log_request(timestamp, client_ip, method, path, 'BLOCKED',
-                       attack_type, matched_pattern)
-
-        # Return a 403 Forbidden response
-        html_body = f"""
-        <!DOCTYPE html>
-        <html>
-        <head><title>403 Forbidden</title></head>
-        <body>
-            <h1>403 Forbidden</h1>
-            <p>Request blocked by WAF. Reason: {attack_type} rule triggered.</p>
-        </body>
-        </html>
-        """
-        return Response(html_body, status=403, mimetype='text/html')
 
       # If no attack detected, log and forward
     timestamp = get_timestamp()
