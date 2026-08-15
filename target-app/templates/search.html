@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+
+{% block title %}Search{% endblock %}
+
+{% block content %}
+<h1>Search</h1>
+
+<form method="get" action="/search">
+    <input type="text" name="q" placeholder="Search..." value="{{ query }}">
+    <button type="submit">Search</button>
+</form>
+
+{% if query %}
+    <p>You searched for: {{ query }}</p>
+{% else %}
+    <p>Enter a search term above.</p>
+{% endif %}
+{% endblock %}
