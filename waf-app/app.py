@@ -13,6 +13,7 @@ MAX_REQUESTS = 20        # max requests per window per IP
 WINDOW_SECONDS = 10      # sliding window length in seconds
 
 app = Flask(__name__)
+db.init_db()
 
 rate_limiter = SlidingWindowRateLimiter(MAX_REQUESTS, WINDOW_SECONDS)
 
@@ -209,5 +210,4 @@ def proxy(subpath):
 
 if __name__ == '__main__':
     # Create the database and table if they don't exist yet
-    db.init_db()
     app.run(host='0.0.0.0', port=5000)
