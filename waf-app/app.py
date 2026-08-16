@@ -134,7 +134,32 @@ def proxy(subpath):
 
     result = check_request(request_data)
 
-      # If no attack detected, log and forward
+    if result["is_attack"]:
+        attack_type = result["attack_type"]
+        matched_pattern = result["matched_pattern"]
+        timestamp = get_timestamp()
+
+        print(f"[{timestamp}] IP={client_ip} "
+              f"attack_type={attack_type} "
+              f"matched_pattern={matched_pattern} "
+              f"action=BLOCKED")
+
+        db.log_request(timestamp, client_ip, method, path, 'BLOCKED',
+                       attack_type, matched_pattern)
+
+        html_body = f"""
+        <!DOCTYPE html>
+        <html>
+        <head><title>403 Forbidden</title></head>
+        <body>
+            <h1>403 Forbidden</h1>
+            <p>Request blocked by WAF. Reason: {attack_type} rule triggered.</p>
+        </body>
+        </html>
+        """
+        return Response(html_body, status=403, mimetype='text/html')
+
+    # If no attack detected, log and forward
     timestamp = get_timestamp()
     print(f"[{timestamp}] IP={client_ip} path={path} action=ALLOWED")
     db.log_request(timestamp, client_ip, method, path, 'ALLOWED')
