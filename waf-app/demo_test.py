@@ -13,7 +13,6 @@ If no base_url is provided, defaults to http://localhost:5000.
 """
 
 import sys
-import time
 import requests
 
 # Try to import colorama for colored output; fallback to plain text
@@ -23,6 +22,12 @@ try:
     HAS_COLOR = True
 except ImportError:
     HAS_COLOR = False
+    # Define dummy Fore/Style classes so the code doesn't crash without colorama
+    class Fore:
+        GREEN = ''
+        RED = ''
+    class Style:
+        RESET_ALL = ''
 
 
 def color_text(text, color):
@@ -50,7 +55,7 @@ def print_result(test_name, payload, expected, actual, passed):
 def run_test(name, method, url, **kwargs):
     """
     Send a request and return (status_code, passed).
-    expected_status is passed via kwargs or as separate param.
+    expected_status is passed via kwargs.
     """
     expected = kwargs.pop("expected", None)
     try:
